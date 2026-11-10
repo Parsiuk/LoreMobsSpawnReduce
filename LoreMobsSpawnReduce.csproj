@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>LoreMobsSpawnReduce</AssemblyName>
+    <RootNamespace>LoreMobsSpawnReduce</RootNamespace>
+    <Version>1.1.0</Version>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <VINTAGE_STORY Condition="'$(VINTAGE_STORY)' == ''">$(HOME)/Apps/VintageStory</VINTAGE_STORY>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="VintagestoryAPI">
+      <HintPath>$(VINTAGE_STORY)/VintagestoryAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="VSSurvivalMod">
+      <HintPath>$(VINTAGE_STORY)/Mods/VSSurvivalMod.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(VINTAGE_STORY)/Lib/0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(VINTAGE_STORY)/Lib/Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="modinfo.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Package the mod as an installable zip: bin/LoreMobsSpawnReduce_<version>.zip -->
+  <Target Name="PackageMod" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <ModStagingDir>$(MSBuildProjectDirectory)/obj/modpackage</ModStagingDir>
+      <ModZipFile>$(MSBuildProjectDirectory)/bin/$(AssemblyName)_$(Version).zip</ModZipFile>
+    </PropertyGroup>
+    <RemoveDir Directories="$(ModStagingDir)" />
+    <Copy SourceFiles="$(TargetPath);modinfo.json" DestinationFolder="$(ModStagingDir)" />
+    <ZipDirectory SourceDirectory="$(ModStagingDir)" DestinationFile="$(ModZipFile)" Overwrite="true" />
+    <Message Importance="high" Text="Mod package: $(ModZipFile)" />
+  </Target>
+
+</Project>

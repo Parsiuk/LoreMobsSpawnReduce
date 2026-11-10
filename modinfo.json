@@ -1,0 +1,15 @@
+{
+  "type": "code",
+  "modid": "loremobsspawnreduce",
+  "name": "Lore Mobs Spawn Reduce",
+  "version": "1.1.0",
+  "authors": ["Maciej Klasa"],
+  "description": "Reduces spawn rate of lore mobs (drifters, shivers, bowtorns, locusts, bells), including temporal storm spawns and spawner blocks such as locust nests. Configurable in ModConfig/loremobsspawnreduce.json.",
+  "side": "Server",
+  "requiredOnClient": false,
+  "requiredOnServer": true,
+  "dependencies": {
+    "game": "1.22.0",
+    "survival": ""
+  }
+}
