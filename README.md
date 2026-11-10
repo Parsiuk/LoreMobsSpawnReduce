@@ -53,6 +53,20 @@ dotnet build -c Release
 
 The installable mod is written to `bin/LoreMobsSpawnReduce_<version>.zip`. Copy it to `VintagestoryData/Mods` and remove any older version. Only the server (or singleplayer host) needs it.
 
+## Releasing
+
+The version is set in one place: `<Version>` in `LoreMobsSpawnReduce.csproj`.
+
+1. In the PR with your changes, bump `<Version>` and add a `### <version>` entry to the changelog below. That entry becomes the release notes.
+2. After the PR is merged, run:
+
+   ```sh
+   ./release.sh
+   ```
+
+   The script checks out and pulls `master`, reads the version from the csproj and copies it into `modinfo.json`. It test-builds the mod and asks for confirmation. Then it commits `modinfo.json` as `Release <version>` (only if it changed), creates the tag `v<version>` and pushes `master` and the tag. Pass `-y` to skip the confirmation.
+3. Pushing the tag starts the GitHub Actions workflow (`.github/workflows/release.yml`). It checks that the tag, the csproj and `modinfo.json` all have the same version. It then builds the mod against the official server DLLs for the minimum game version in `modinfo.json` (`dependencies.game`) and publishes a GitHub release with the zip attached.
+
 ## Changelog
 
 ### 1.1.0
