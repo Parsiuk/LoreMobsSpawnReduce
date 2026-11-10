@@ -1,0 +1,99 @@
+name: Release
+
+# Builds the mod and publishes a GitHub release whenever a version tag (v1.2.3) is pushed.
+# Tags are normally created by ./release.sh.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out tagged commit
+        uses: actions/checkout@v5
+
+      - name: Read and verify versions
+        id: version
+        run: |
+          version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' LoreMobsSpawnReduce.csproj | head -n1)
+          modinfo_version=$(jq -r '.version' modinfo.json)
+          game_version=$(jq -r '.dependencies.game' modinfo.json)
+
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match <Version> $version in LoreMobsSpawnReduce.csproj"
+            exit 1
+          fi
+          if [ "$modinfo_version" != "$version" ]; then
+            echo "::error::modinfo.json version $modinfo_version does not match <Version> $version in LoreMobsSpawnReduce.csproj"
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "game=$game_version" >> "$GITHUB_OUTPUT"
+
+      # The mod compiles against the game's own DLLs. They come from the official server
+      # package for the minimum supported game version (dependencies.game in modinfo.json).
+      - name: Cache Vintage Story DLLs
+        id: cache-vs
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/vintagestory
+          key: vs-server-dlls-${{ steps.version.outputs.game }}
+
+      - name: Download Vintage Story DLLs
+        if: steps.cache-vs.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/vintagestory"
+          curl -sSfL "https://cdn.vintagestory.at/gamefiles/stable/vs_server_linux-x64_${{ steps.version.outputs.game }}.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP/vintagestory" \
+                VintagestoryAPI.dll Lib/0Harmony.dll Lib/Newtonsoft.Json.dll Mods/VSSurvivalMod.dll
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build
+        run: dotnet build -c Release -p:VINTAGE_STORY="$RUNNER_TEMP/vintagestory"
+
+      - name: Prepare release notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Take the "### <version>" section of the README changelog, up to the next heading.
+          awk -v heading="### $VERSION" '
+            $0 == heading { found = 1; next }
+            found && /^#/ { exit }
+            found { print }
+          ' README.md > changelog.md
+
+          if ! grep -q '[^[:space:]]' changelog.md; then
+            echo "::warning::No '### $VERSION' section in the README changelog"
+            echo "See the commit history for changes." > changelog.md
+          fi
+
+          {
+            echo "Server-side mod for Vintage Story that reduces the spawn rate of lore mobs: drifters, shivers, bowtorns, locusts and bells."
+            echo
+            echo "## Changes"
+            cat changelog.md
+            echo
+            echo "## Install"
+            echo "Download \`LoreMobsSpawnReduce_$VERSION.zip\`, put it in \`VintagestoryData/Mods\` and remove any older version. Only the server (or singleplayer host) needs it."
+          } > release-notes.md
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "bin/LoreMobsSpawnReduce_$VERSION.zip" \
+            --verify-tag \
+            --title "Lore Mobs Spawn Reduce $VERSION" \
+            --notes-file release-notes.md
